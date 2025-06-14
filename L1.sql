@@ -1,8 +1,9 @@
+-- L1_google_sheets 
 -- L1_status
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L1.L1_status` AS
 SELECT
   CAST(id_status AS INT) AS product_status_id -- PK
-  ,LOWER(status_name) AS product_status_name
+  ,TRIM(LOWER(status_name)) AS product_status_name -- TRIM and LOWER are used to ensure consistency in text fields
   ,DATE(TIMESTAMP(date_update), 'Europe/Prague') AS product_update_date
 FROM
   `bubbly-monument-455614-i7.L0_google_sheets.status`
@@ -14,26 +15,29 @@ QUALIFY ROW_NUMBER() OVER(PARTITION BY product_status_id) = 1;
 -- L1_branch 
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L1.L1_branch` AS
 SELECT
- CAST(id_branch AS INT) AS branch_id -- PK
-  ,LOWER(branch_name) AS branch_name
+ SAFE_CAST(id_branch AS INT) AS branch_id -- PK
+  ,TRIM(LOWER(branch_name)) AS branch_name -- TRIM and LOWER are used to ensure consistency in text fields
   ,DATE(TIMESTAMP(date_update), 'Europe/Prague') AS product_status_update_date
 FROM `bubbly-monument-455614-i7.L0_google_sheets.branch`
-WHERE id_branch IS NOT NULL;
+WHERE SAFE_CAST(id_branch AS INT) IS NOT NULL;
+
 
 -- L1_product
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L1.L1_product` AS
 SELECT
   CAST(id_product AS INT) AS product_id -- PK
-  ,LOWER(name) AS product_name
-  ,LOWER(type) AS product_type
-  ,LOWER(category) AS product_category
+  ,TRIM(LOWER(name)) AS product_name -- TRIM and LOWER are used to ensure consistency in text fields
+  ,TRIM(LOWER(type)) AS product_type
+  ,TRIM(LOWER(category)) AS product_category
   ,CAST(is_vat_applicable AS BOOL) AS is_vat_applicable
   ,DATE(TIMESTAMP(date_update), 'Europe/Prague') AS product_update_date
 FROM `bubbly-monument-455614-i7.L0_google_sheets.product`
 WHERE id_product IS NOT NULL
--- checking unique IDs
+  AND name IS NOT NULL
+-- unique id
 QUALIFY ROW_NUMBER() OVER(PARTITION BY product_id) = 1;
 
+-- L1_accounting_system
 -- L1_invoice
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L1.L1_invoice` AS
 SELECT
@@ -78,6 +82,7 @@ SELECT
   ,CAST(tva AS INT) AS vat_rate
   ,CAST(value AS FLOAT64) AS price_w_vat_usd
   ,CAST(payed AS FLOAT64) AS paid_w_vat_usd
+  -- Following CASE expression is used to normalize inconsistent unit values (e.g. typos, different languages, or     encoding issues)
   ,CASE
     WHEN um IN ('mesia','m?síce','m?si?1ce','měsice','mesiace','měsíce','mesice') THEN 'month'
     WHEN um = 'kus' THEN "item"
@@ -86,7 +91,7 @@ SELECT
     WHEN um = '0' THEN null
     ELSE um
   END AS unit
-  ,LOWER(currency) AS currency
+  ,TRIM(LOWER(currency)) AS currency
   ,CAST(quantity AS FLOAT64) AS quantity
   ,DATE(TIMESTAMP(start_date), 'Europe/Prague') AS start_date
   ,DATE(TIMESTAMP(end_date), 'Europe/Prague') AS end_date
@@ -101,14 +106,14 @@ SELECT
   ,CAST(id_branch AS INT) AS branch_id -- FK
   ,DATE(TIMESTAMP(date_contract_valid_from), 'Europe/Prague') AS contract_valid_from
   ,DATE(TIMESTAMP(date_contract_valid_to), 'Europe/Prague') AS contract_valid_to
-  ,DATE(TIMESTAMP(date_registered), 'Europe/Prague') AS registred_date
+  ,DATE(TIMESTAMP(date_registered), 'Europe/Prague') AS registered_date
   ,DATE(TIMESTAMP(date_signed), 'Europe/Prague') AS signed_date
   ,DATE(TIMESTAMP(activation_process_date), 'Europe/Prague') AS activation_process_date
   ,DATE(TIMESTAMP(prolongation_date), 'Europe/Prague') AS prolongation_date
-  ,LOWER(registration_end_reason) AS registration_end_reason
+  ,TRIM(LOWER(registration_end_reason)) AS registration_end_reason -- TRIM and LOWER are used to ensure consistency in text fields
   ,CAST(flag_prolongation AS BOOL) AS flag_prolongation
   ,CAST(flag_send_inv_email AS BOOL) AS flag_sent_email
-  ,LOWER(contract_status) AS contract_status
+  ,TRIM(LOWER(contract_status)) AS contract_status
 FROM `bubbly-monument-455614-i7.L0_crm.contract`;
 
 -- L1_product_purchase
@@ -127,6 +132,7 @@ SELECT
   ,p.product_name AS product_name
   ,p.product_type AS product_type
   ,p.product_category AS product_category 
+  -- Following CASE expression is used to normalize inconsistent unit values (e.g. typos, different languages, or     encoding issues)
   ,CASE
     WHEN measure_unit IN ('mesia','m?síce','m?si?1ce','měsice','mesiace','měsíce','mesice') THEN 'month'
     WHEN measure_unit = 'kus' THEN "item"
