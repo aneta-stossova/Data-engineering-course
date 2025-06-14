@@ -6,6 +6,7 @@ SELECT
 FROM `bubbly-monument-455614-i7.L1.L1_branch`
 WHERE branch_name != 'unknown';
 
+
 -- L2_product
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L2.L2_product` AS
 SELECT
@@ -48,6 +49,7 @@ FROM `bubbly-monument-455614-i7.L1.L1_invoice`
 WHERE invoice_type = 'invoice'
   AND flag_invoice_issued = TRUE;
 
+
 -- L2_contract
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L2.L2_contract` AS
 SELECT
@@ -55,7 +57,7 @@ SELECT
     ,branch_id
     ,contract_valid_from
     ,contract_valid_to
-    ,registred_date
+    ,registered_date
     ,registration_end_reason
     ,signed_date
     ,activation_process_date
@@ -64,45 +66,15 @@ SELECT
     ,contract_status
     ,flag_sent_email
 FROM `bubbly-monument-455614-i7.L1.L1_contract`
-WHERE contract_valid_from IS NOT NULL
-  AND contract_valid_to IS NOT NULL
-  AND contract_valid_from < contract_valid_to
-  AND registred_date IS NOT NULL;
-
--- L2_product_purchase - VARIANTA 1
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L2.L2_product_purchase` AS
-SELECT
-    product_purchase_id
-    ,product_id 
-    ,contract_id
-    ,product_name
-    ,product_type
-    ,product_category 
-    ,product_status
-    -- Replacement of negative values with 0 because negative values are not valid in this context
-    ,CASE
-        WHEN price_wo_vat < 0 THEN 0
-        ELSE price_wo_vat
-    END AS price_wo_vat
-    -- Replacement of negative values with 0 because negative values are not valid in this context
-    -- Calculating the price including VAT (20%) based on the price without VAT
-    ,CASE
-        WHEN price_wo_vat < 0 THEN 0
-        ELSE price_wo_vat
-    END * 1.2 AS price_w_vat
-    ,IF(product_valid_from = '2035-12-31', TRUE, FALSE) AS flag_unlimited_product
-    ,unit
-    ,product_valid_from
-    ,product_valid_to
-    ,create_date
-    ,update_date
-FROM `bubbly-monument-455614-i7.L1.L1_product_purchase`
-WHERE product_category IN ('product','rent')
-  AND product_status IS NOT NULL
-  AND product_status NOT IN ('canceled','canceled registration','disconnected')
+-- Filtering out invalid or incomplete contract records:
+WHERE contract_valid_from IS NOT NULL -- ensures contract has a defined start date
+  AND contract_valid_to IS NOT NULL -- ensures contract has a defined end date
+  AND contract_valid_from < contract_valid_to -- avoids logically incorrect contracts (e.g. ending before they start)
+  AND registered_date IS NOT NULL -- filters out unregistered or incomplete entries
 ;
 
--- L2_product_purchase - VARIANTA 2
+
+-- L2_product_purchase
 CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L2.L2_product_purchase` AS
 WITH cleaned_price AS (
   SELECT
@@ -113,6 +85,7 @@ WITH cleaned_price AS (
     ,product_type
     ,product_category
     ,product_status
+    -- Replacement of negative values with 0 because negative values are not valid in this context
     ,CASE
       WHEN price_wo_vat < 0 THEN 0
       ELSE price_wo_vat
@@ -130,5 +103,6 @@ WITH cleaned_price AS (
 )
 SELECT
   *,
+  -- Calculation of the price including VAT (20%) based on the price without VAT
   price_wo_vat * 1.2 AS price_w_vat
 FROM cleaned_price;
