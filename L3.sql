@@ -1,13 +1,13 @@
--- L3_branch 
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_marketing_mart_branch` AS
+-- L3_dim_branch 
+CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_dim_branch` AS
 SELECT
     branch_id
     ,branch_name
 FROM `bubbly-monument-455614-i7.L2.L2_branch`;
 
 
--- L3_marketing_mart_contract
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_marketing_mart_contract` AS
+-- L3_dim_contract
+CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_dim_contract` AS
 SELECT
     contract_id
     ,branch_id
@@ -27,8 +27,8 @@ SELECT
 FROM `bubbly-monument-455614-i7.L2.L2_contract`
 ;
 
--- L3_product
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_marketing_mart_product` AS
+-- L3_dim_product_purchase
+CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_dim_product_purchase` AS
 SELECT
   product_purchase_id
   ,product_id
@@ -40,9 +40,8 @@ SELECT
   ,flag_unlimited_product
 FROM `bubbly-monument-455614-i7.L2.L2_product_purchase`;
 
--- Varianta faktovka = invoice, JOIN na product_purchase
-
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.fact_invoice_pp` AS
+-- L3_fact_invoice
+CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.L3_fact_invoice` AS
 SELECT
   i.invoice_id,
   i.contract_id,
@@ -53,18 +52,5 @@ SELECT
   i.paid_date,
   i.date_issue
 FROM `bubbly-monument-455614-i7.L2.L2_invoice` AS i
-LEFT JOIN `bubbly-monument-455614-i7.L2.L2_product_purchase` AS pp -- nebo joinovat na L3_product?
+LEFT JOIN `bubbly-monument-455614-i7.L2.L2_product_purchase` AS pp
   ON i.contract_id = pp.contract_id;
-
--- Varianta faktovka = invoice, JOIN na invoice_load
-
-CREATE OR REPLACE VIEW `bubbly-monument-455614-i7.L3.fact_invoice_line` AS
-SELECT
-  i.invoice_id
-  ,i.contract_id
-  ,l.product_id
-  ,i.amount_w_vat
-  ,(i.amount_w_vat - i.return_w_vat) AS total_paid
-  ,i.paid_date
-FROM `bubbly-monument-455614-i7.L2.L2_invoice` AS i 
-LEFT JOIN `bubbly-monument-455614-i7.L1.L1_invoice_load` AS l ON l.invoice_id = i.invoice_id;
